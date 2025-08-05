@@ -13,7 +13,8 @@ app = Flask(__name__)
 application = Application.builder().token(TOKEN).build()
 
 # حلقه رویداد پایدار (نه هر بار asyncio.run)
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 loop.run_until_complete(application.initialize())
 
 # --- /start ---
@@ -85,9 +86,12 @@ def callback():
 def webhook():
     if request.method == "GET":
         return "Webhook OK", 200
-    update = Update.de_json(request.get_json(force=True), application.bot)
+    data = request.get_json(force=True)
+    print("RAW UPDATE:", data)  # برای لاگ دیباگ
+    update = Update.de_json(data, application.bot)
     loop.create_task(application.process_update(update))
     return "OK", 200
+
 
 
 # اجرای Flask
