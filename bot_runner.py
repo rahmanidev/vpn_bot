@@ -34,6 +34,7 @@ async def process_buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     plan = query.data.split("_")[1]
     amount = 100000 if plan == "1" else 250000
+    print(f"Processing buy for plan {plan}, amount {amount}", flush=True)
     url, authority = create_payment(amount, f"خرید سرویس {plan} ماهه", CALLBACK_URL)
     if url:
         await query.edit_message_text(f"برای پرداخت روی لینک زیر کلیک کن:\n{url}")
