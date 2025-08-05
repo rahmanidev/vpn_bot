@@ -28,7 +28,7 @@ def verify_payment(authority):
     url = "https://api.zarinpal.com/pg/v4/payment/verify.json"
     data = {
         "merchant_id": MERCHANT_ID,
-        "amount": 100000,  # مبلغ تراکنش که پرداخت شده (ثابت یا باید ذخیره کنی)
+        "amount": 100000,
         "authority": authority
     }
     headers = {'accept': 'application/json','content-type': 'application/json'}
