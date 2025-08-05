@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from zarinpal_api import create_payment
 
 TOKEN = "8365218010:AAFeYmsmSeDCmpJzSV_A7AFLhrYzvzS7_RU"
-CALLBACK_URL = "https://nuvix.ir/vpn_callback/callback"
+CALLBACK_URL = "https://arsenmobile.com/vpn_callback/callback"
 
 # --- /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
