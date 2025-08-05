@@ -90,6 +90,16 @@ def home():
     return "Bot is running!", 200
 
 # اجرای Flask روی پورت Railway
+import threading
+
+def run_telegram():
+    loop.run_until_complete(application.start())
+    loop.run_forever()
+
 if __name__ == "__main__":
+    # اجرای بات تلگرام در یک Thread جدا
+    threading.Thread(target=run_telegram, daemon=True).start()
+    # اجرای Flask (برای Webhook)
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
