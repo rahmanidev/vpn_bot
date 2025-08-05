@@ -12,7 +12,7 @@ CALLBACK_URL = "https://nuvix.ir/vpn_callback/callback"
 app = Flask(__name__)
 application = Application.builder().token(TOKEN).build()
 
-# حلقه رویداد پایدار (نه هر بار asyncio.run)
+# حلقه رویداد سازگار با Python 3.12
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 loop.run_until_complete(application.initialize())
@@ -58,43 +58,36 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(buy_menu, pattern="buy_menu"))
 application.add_handler(CallbackQueryHandler(process_buy, pattern="buy_"))
 
-# --- Webhook تلگرام ---
-@app.route("/webhook", methods=["POST"])
+# --- Webhook (GET برای تست + POST برای تلگرام) ---
+@app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
+    if request.method == "GET":
+        return "Webhook OK", 200
+    data = request.get_json(force=True)
+    print("RAW UPDATE:", data)  # برای دیباگ تو لاگ Railway
+    update = Update.de_json(data, application.bot)
     loop.create_task(application.process_update(update))
     return "OK", 200
 
 # --- Callback زرین‌پال ---
 @app.route("/callback", methods=["GET"])
 def callback():
-    from telegram import Bot
-    bot = Bot(TOKEN)
     authority = request.args.get('Authority')
     status = request.args.get('Status')
     if status == "OK":
         verified = verify_payment(authority)
         if verified:
-            # به کاربر پیام بده (نیاز به ذخیره chat_id داریم)
             return "پرداخت شما با موفقیت انجام شد.", 200
         else:
             return "پرداخت تایید نشد!", 200
     return "پرداخت لغو شد!", 200
 
 # --- صفحه اصلی ---
-@app.route("/webhook", methods=["GET", "POST"])
-def webhook():
-    if request.method == "GET":
-        return "Webhook OK", 200
-    data = request.get_json(force=True)
-    print("RAW UPDATE:", data)  # برای لاگ دیباگ
-    update = Update.de_json(data, application.bot)
-    loop.create_task(application.process_update(update))
-    return "OK", 200
+@app.route("/", methods=["GET"])
+def home():
+    return "Bot is running!", 200
 
-
-
-# اجرای Flask
+# اجرای Flask روی پورت Railway
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
