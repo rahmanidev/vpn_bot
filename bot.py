@@ -1,15 +1,22 @@
+import os
+import asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-import asyncio
-from zarinpal_api import create_payment
+from zarinpal_api import create_payment, verify_payment
 
 TOKEN = "8365218010:AAFeYmsmSeDCmpJzSV_A7AFLhrYzvzS7_RU"
 CALLBACK_URL = "https://nuvix.ir/vpn_callback/callback"
 
+# ساخت اپ Flask و اپ تلگرام
 app = Flask(__name__)
 application = Application.builder().token(TOKEN).build()
 
+# حلقه رویداد پایدار (نه هر بار asyncio.run)
+loop = asyncio.get_event_loop()
+loop.run_until_complete(application.initialize())
+
+# --- /start ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 خرید سرویس", callback_data='buy_menu')],
@@ -21,6 +28,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+# --- خرید ---
 async def buy_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -44,23 +52,40 @@ async def process_buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.edit_message_text("❌ خطا در ایجاد تراکنش. لطفاً دوباره تلاش کنید.")
 
+# --- هندلرها ---
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CallbackQueryHandler(buy_menu, pattern="buy_menu"))
 application.add_handler(CallbackQueryHandler(process_buy, pattern="buy_"))
 
+# --- Webhook تلگرام ---
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.run(application.process_update(update))
+    loop.create_task(application.process_update(update))
     return "OK", 200
 
+# --- Callback زرین‌پال ---
+@app.route("/callback", methods=["GET"])
+def callback():
+    from telegram import Bot
+    bot = Bot(TOKEN)
+    authority = request.args.get('Authority')
+    status = request.args.get('Status')
+    if status == "OK":
+        verified = verify_payment(authority)
+        if verified:
+            # به کاربر پیام بده (نیاز به ذخیره chat_id داریم)
+            return "پرداخت شما با موفقیت انجام شد.", 200
+        else:
+            return "پرداخت تایید نشد!", 200
+    return "پرداخت لغو شد!", 200
+
+# --- صفحه اصلی ---
 @app.route("/", methods=["GET"])
 def home():
     return "Bot is running!", 200
 
-import os
-
+# اجرای Flask
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
-

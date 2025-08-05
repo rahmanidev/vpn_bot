@@ -23,3 +23,21 @@ def create_payment(amount, description, callback_url, email="", mobile=""):
     except Exception as e:
         print("Zarinpal Exception:", e)
         return None, None
+
+def verify_payment(authority):
+    url = "https://api.zarinpal.com/pg/v4/payment/verify.json"
+    data = {
+        "merchant_id": MERCHANT_ID,
+        "amount": 100000,  # مبلغ تراکنش که پرداخت شده (ثابت یا باید ذخیره کنی)
+        "authority": authority
+    }
+    headers = {'accept': 'application/json','content-type': 'application/json'}
+    try:
+        response = requests.post(url, json=data, headers=headers, timeout=10).json()
+        print("ZARINPAL VERIFY:", response)
+        if "data" in response and "code" in response["data"] and response['data']['code'] == 100:
+            return True
+        return False
+    except Exception as e:
+        print("Zarinpal Verify Exception:", e)
+        return False
