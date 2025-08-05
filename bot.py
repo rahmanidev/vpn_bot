@@ -81,9 +81,14 @@ def callback():
     return "پرداخت لغو شد!", 200
 
 # --- صفحه اصلی ---
-@app.route("/", methods=["GET"])
-def home():
-    return "Bot is running!", 200
+@app.route("/webhook", methods=["GET", "POST"])
+def webhook():
+    if request.method == "GET":
+        return "Webhook OK", 200
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    loop.create_task(application.process_update(update))
+    return "OK", 200
+
 
 # اجرای Flask
 if __name__ == "__main__":
