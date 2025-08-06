@@ -1,7 +1,7 @@
 import requests
 
 MERCHANT_ID = "6a07e02c-bcc7-4ab8-956d-b28ecd7a5107"  # مرچنت کد واقعی خودت رو اینجا بزار
-CALLBACK_URL = "https://arsenmobile.com/vpn_callback/callback"
+CALLBACK_URL = "https://arsenmobile.com/callback"
 
 def create_payment(amount, description, callback_url):
     url = "https://api.zarinpal.com/pg/v4/payment/request.json"
