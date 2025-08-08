@@ -1,10 +1,15 @@
-from telebot import TeleBot, types
 import requests
+from telebot import TeleBot, types
+from requests.auth import HTTPBasicAuth
 
-# تنظیمات ثابت
 TOKEN = "8365218010:AAFeYmsmSeDCmpJzSV_A7AFLhrYzvzS7_RU"
-MERCHANT_ID_zarinpal = "6a07e02c-bcc7-4ab8-956d-b28ecd7a5107"
+MERCHANT_ID = "6a07e02c-bcc7-4ab8-956d-b28ecd7a5107"
 CALLBACK_URL = "https://arsenmobile.com/callback"
+
+XUI_PANEL_URL = "http://arsenmobile.armani19.space:9537"
+XUI_USER = "2020ar"
+XUI_PASS = "2020ss"
+XUI_PORTS = [9537, 2096]
 
 bot = TeleBot(TOKEN)
 
@@ -19,13 +24,13 @@ plans = [
     {"title": "سه ماهه ، 300 گیگ ، کاربر نامحدود", "price": 850000, "period": 90, "traffic": 300, "users": "نامحدود"},
 ]
 
-# یک دیتابیس ساده موقت (مثلا dict) برای ذخیره سرویس‌ها (برای نمونه)
+# اینجا سرویس‌های کاربران رو نگهداری می‌کنیم (مثال ساده، بعدا باید دیتابیس بزنی)
 user_services = {}
 
 def create_payment_link(amount, description, user_id):
     url = "https://api.zarinpal.com/pg/v4/payment/request.json"
     data = {
-        "merchant_id": MERCHANT_ID_zarinpal,
+        "merchant_id": MERCHANT_ID,
         "amount": amount,
         "callback_url": CALLBACK_URL,
         "description": description,
@@ -38,10 +43,29 @@ def create_payment_link(amount, description, user_id):
     else:
         return None
 
-def build_panel_for_user(user_id, plan):
-    # این تابع باید به پنل XUI یا پنل وی‌پی‌ان متصل بشه و اکانت بسازه
-    # الان فقط یک رشته نمونه برمیگردونه:
-    return f"اکانت شما ساخته شد:\nپلن: {plan['title']}\nکاربر: {user_id}"
+def build_xui_account(user_id, plan):
+    # این تابع به پنل XUI وصل میشه و اکانت میسازه  
+    # اینجا نمونه درخواست با Basic Auth میزنیم، باید طبق API پنل خودت تغییر بدی
+
+    # داده‌ای که باید بفرستی (نمونه)
+    payload = {
+        "email": f"user{user_id}@vpnservice.ir",
+        "username": f"user{user_id}",
+        "password": "Pass1234!",  # اگه لازم داری تولید کن یا تغییر بده
+        "transfer_enable": plan["traffic"] * 1024 * 1024 * 1024 if plan["traffic"] > 0 else 0,  # تبدیل گیگ به بایت
+        "expire_time": plan["period"],
+        "port": XUI_PORTS[0],  # یا یکی از پورت‌ها
+        # بقیه فیلدها رو طبق داکیومنت پنل خودت اضافه کن
+    }
+    try:
+        res = requests.post(f"{XUI_PANEL_URL}/api/v1/client/add", json=payload,
+                            auth=HTTPBasicAuth(XUI_USER, XUI_PASS))
+        if res.status_code == 200:
+            return "اکانت با موفقیت ساخته شد!"
+        else:
+            return f"خطا در ساخت اکانت: {res.text}"
+    except Exception as e:
+        return f"خطا در ارتباط با پنل: {e}"
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
@@ -81,7 +105,6 @@ def show_status(message):
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text=text)
 
 def renew_service(message):
-    # همین خرید سرویس رو نشون بده (یا میتونی منطق تمدید اضافه کنی)
     send_plans(message)
 
 def plan_selected(call):
@@ -93,11 +116,10 @@ def plan_selected(call):
     if payment_link:
         bot.answer_callback_query(call.id, f"لطفا پرداخت را انجام دهید.")
         bot.send_message(user_id, f"برای پرداخت پلن «{plan['title']}» لطفا روی لینک زیر کلیک کنید:\n{payment_link}")
-        # فرض می‌کنیم بعد پرداخت callback میزنه و اکانت ساخته میشه
     else:
         bot.answer_callback_query(call.id, "مشکل در ایجاد لینک پرداخت. لطفا بعدا تلاش کنید.")
 
-# فرض کنیم بعد از callback زرین پال این تابع فراخوانی میشه (شبیه‌سازی)
+# این تابع فرضی است برای زمانی که callback زرین پال پرداخت موفق را اعلام میکند.
 def payment_success(user_id, plan_index):
     plan = plans[plan_index]
     user_services[user_id] = {
@@ -105,8 +127,9 @@ def payment_success(user_id, plan_index):
         "remaining_traffic": plan["traffic"],
         "remaining_days": plan["period"],
     }
-    panel_info = build_panel_for_user(user_id, plan)
-    bot.send_message(user_id, panel_info)
+    # ساخت اکانت روی پنل XUI
+    result = build_xui_account(user_id, plan)
+    bot.send_message(user_id, f"پرداخت شما موفق بود.\n{result}")
 
 if __name__ == "__main__":
     print("Starting bot...")
